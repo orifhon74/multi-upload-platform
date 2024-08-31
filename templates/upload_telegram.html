@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload to Telegram</title>
+</head>
+<body>
+    <h1>Upload Video to Telegram</h1>
+    <form action="{{ url_for('upload_telegram') }}" method="post" enctype="multipart/form-data">
+        <label for="video_file">Video File:</label>
+        <input type="file" name="video_file" id="video_file" required>
+        <br>
+        <label for="caption">Caption:</label>
+        <input type="text" name="caption" id="caption">
+        <br>
+        <button type="submit">Upload</button>
+    </form>
+</body>
+</html>

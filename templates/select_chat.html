@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Select Chat</title>
+</head>
+<body>
+  <form method="post" action="{{ url_for('upload_telegram') }}">
+    <label for="chat">Select Chat/Channel:</label>
+    <select id="chat" name="chat_id">
+        {% for chat in chats %}
+            <option value="{{ chat.id }}">{{ chat.title }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="caption">Caption:</label>
+    <input type="text" id="caption" name="caption"><br>
+
+    <input type="hidden" name="video_path" value="{{ video_path }}">
+    <button type="submit">Upload to Telegram</button>
+</form>
+</body>
+</html>
