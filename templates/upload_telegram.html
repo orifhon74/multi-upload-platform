@@ -1,18 +1,29 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Upload to Telegram</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Video to Telegram</title>
 </head>
 <body>
     <h1>Upload Video to Telegram</h1>
-    <form action="{{ url_for('upload_telegram') }}" method="post" enctype="multipart/form-data">
-        <label for="video_file">Video File:</label>
-        <input type="file" name="video_file" id="video_file" required>
-        <br>
-        <label for="caption">Caption:</label>
-        <input type="text" name="caption" id="caption">
-        <br>
-        <button type="submit">Upload</button>
+    <form action="{{ url_for('upload_telegram_video') }}" method="POST" enctype="multipart/form-data">
+
+        <!-- Dropdown to select chat/channel -->
+        <label for="chat_id">Select a Chat/Channel:</label>
+        <select id="chat_id" name="chat_id" required>
+            {% for chat_id, chat_title in chats %}
+            <option value="{{ chat_id }}">{{ chat_title }}</option>
+            {% endfor %}
+        </select><br><br>
+
+        <label for="caption">Enter a Caption:</label>
+        <input type="text" id="caption" name="caption" required><br><br>
+
+        <label for="video_file">Upload Video File:</label>
+        <input type="file" id="video_file" name="video_file" accept="video/*" required><br><br>
+
+        <button type="submit">Upload Video</button>
     </form>
 </body>
 </html>

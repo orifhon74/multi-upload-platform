@@ -14,6 +14,10 @@
         <input type="password" id="password" name="password" required><br><br>
         <input type="submit" value="Login">
     </form>
+
     <p>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+
+    <!-- Add a button to log in to Telegram -->
+    <button onclick="location.href='{{ url_for('login_telegram') }}'">Login to Telegram</button>
 </body>
 </html>

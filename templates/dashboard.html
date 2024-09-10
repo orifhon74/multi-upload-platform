@@ -3,6 +3,15 @@
 {% block content %}
 <h2>Dashboard</h2>
 <p>Welcome to your dashboard!</p>
-<button onclick="location.href='{{ url_for('upload') }}'">Upload Video</button>
+
+<!-- Upload Video to YouTube -->
+<button onclick="location.href='{{ url_for('upload') }}'">Upload Video to YouTube</button>
+
+<!-- Add a new button to upload video to Telegram -->
+<button onclick="location.href='{{ url_for('upload_telegram_video_page') }}'">Upload Video to Telegram</button>
+
+<!-- Add a button to log in to Telegram -->
+<button onclick="location.href='{{ url_for('login_telegram') }}'">Login to Telegram</button>
+
 <a href="{{ url_for('logout') }}">Logout</a>
 {% endblock %}

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from telethon import TelegramClient, sync
 
@@ -13,7 +13,6 @@ import logging
 import json
 import asyncio
 from telethon.sessions import StringSession
-from asyncio import new_event_loop, set_event_loop
 
 from youtube_upload import upload_to_youtube
 
@@ -242,29 +241,141 @@ def oauth2callback():
     return redirect(url_for('dashboard'))
 
 
-@app.route('/upload_telegram', methods=['GET', 'POST'])
-def upload_telegram():
+# Helper to run asynchronous tasks in Flask
+def run_async_task(coro):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
+
+# Route for sending verification code
+@app.route('/send_code', methods=['POST'])
+def send_code():
+    phone_number = request.json.get('phone_number')
+    client = TelegramClient(f'session_{phone_number}', api_id, api_hash)
+
+    async def send_code_async():
+        await client.connect()
+        if not await client.is_user_authorized():
+            await client.send_code_request(phone_number)
+        return "Code sent to Telegram"
+
+    result = run_async_task(send_code_async())
+    return jsonify({'message': result})
+
+
+@app.route('/login_telegram', methods=['GET', 'POST'])
+def login_telegram():
     if request.method == 'POST':
-        video_file = request.files['video_file']
-        caption = request.form['caption']
+        phone_number = request.form['phone_number']  # Get the phone number from the form
 
-        if video_file:
-            video_path = os.path.join('uploads', video_file.filename)
-            video_file.save(video_path)
+        async def send_code_async():
+            client = TelegramClient(f'session_{phone_number}', api_id, api_hash)
+            await client.connect()
 
-            # Use the pre-initialized client
-            asyncio.run(send_to_telegram(video_path, caption))
+            # Request the code and store the `phone_code_hash`
+            if not await client.is_user_authorized():
+                result = await client.send_code_request(phone_number)
+                session['phone_code_hash'] = result.phone_code_hash  # Store the hash in the session
 
-            flash('Video uploaded to Telegram!')
-            return redirect(url_for('dashboard'))
+            await client.disconnect()
 
-    return render_template('upload_telegram.html')
+        # Use asyncio.run() to ensure there is an event loop
+        asyncio.run(send_code_async())
 
-# Now the client is ready to be used for sending files
-async def send_to_telegram(video_path, caption):
-    # Use the client to send the file
-    async with client:
-        await client.send_file('me', video_path, caption=caption)
+        session['phone_number'] = phone_number
+
+        # Redirect to the code entry page
+        return redirect(url_for('enter_telegram_code'))
+
+    return render_template('login_telegram.html')
+
+
+@app.route('/enter_telegram_code', methods=['GET', 'POST'])
+def enter_telegram_code():
+    phone_number = session.get('phone_number')
+    phone_code_hash = session.get('phone_code_hash')  # Retrieve the phone_code_hash from the session
+
+    if request.method == 'POST':
+        code = request.form['code']  # Get the code from the form
+
+        async def login_async():
+            client = TelegramClient(f'session_{phone_number}', api_id, api_hash)
+            await client.connect()
+
+            # Now sign in using the phone number, code, and phone_code_hash
+            await client.sign_in(phone=phone_number, code=code, phone_code_hash=phone_code_hash)
+
+            await client.disconnect()
+
+        # Use asyncio.run() to ensure there is an event loop
+        asyncio.run(login_async())
+
+        flash('Logged in successfully!')
+        return redirect(url_for('dashboard'))
+
+    return render_template('enter_code.html', phone_number=phone_number)
+
+
+@app.route('/upload_telegram_video', methods=['POST'])
+def upload_telegram_video():
+    phone_number = session.get('phone_number')  # Retrieve the logged-in user's phone number
+    chat_id = request.form['chat_id']  # Get the chat/channel ID from the form
+    caption = request.form['caption']  # Get the caption from the form
+    video_file = request.files['video_file']  # Get the video file from the form
+
+    if video_file:
+        # Save the video file to a temporary location
+        video_path = os.path.join(app.config['UPLOAD_FOLDER'], video_file.filename)
+        video_file.save(video_path)
+
+        async def upload_async():
+            client = TelegramClient(f'session_{phone_number}', api_id, api_hash)
+            await client.connect()
+
+            # Fetch the entity (chat/channel) based on the provided ID
+            entity = await client.get_entity(int(chat_id))
+
+            # Send the video to the resolved entity with the caption
+            await client.send_file(entity, video_path, caption=caption)
+
+            await client.disconnect()
+
+        # Run the async function to upload the video
+        asyncio.run(upload_async())
+
+        flash('Video uploaded successfully to Telegram!')
+        return redirect(url_for('dashboard'))
+
+    flash('Please upload a video file.')
+    return redirect(url_for('upload_telegram_video_page'))
+
+
+
+@app.route('/upload_telegram_video_page', methods=['GET'])
+def upload_telegram_video_page():
+    phone_number = session.get('phone_number')  # Retrieve the logged-in user's phone number
+
+    async def fetch_chats():
+        client = TelegramClient(f'session_{phone_number}', api_id, api_hash)
+        await client.connect()
+
+        # Fetch the dialogs (chats/channels the user is part of)
+        dialogs = await client.get_dialogs()
+
+        # Store the dialog names and IDs in a list of tuples
+        chats = [(dialog.id, dialog.title) for dialog in dialogs]
+
+        await client.disconnect()
+
+        return chats
+
+    # Fetch the chats asynchronously
+    chats = asyncio.run(fetch_chats())
+
+    # Render the form and pass the chats to the template
+    return render_template('upload_telegram.html', chats=chats)
+
+
 
 @app.route('/urls')
 def list_urls():
