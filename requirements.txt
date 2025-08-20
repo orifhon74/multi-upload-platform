@@ -1,0 +1,10 @@
+flask
+flask-sqlalchemy
+pymysql
+flask-session
+flask-caching
+werkzeug
+telethon
+google-auth-oauthlib
+google-api-python-client
+youtube-upload
